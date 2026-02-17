@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Lead, HTMLAnalysis, HTMLVisResult } from "../types";
+import { Lead, HTMLAnalysis, HTMLVisResult } from "../types.ts";
 
 const parseGeminiError = (error: any): string => {
   console.error("Gemini API Error:", error);
@@ -8,14 +8,14 @@ const parseGeminiError = (error: any): string => {
 };
 
 /**
- * Utility to safely get the API key from the environment.
+ * Utility to safely get the API key. 
  */
-const getApiKey = () => {
+const getApiKey = (): string => {
   try {
-    return process.env.API_KEY || '';
+    // Attempt standard process.env, fallback to window.process.env
+    return (process.env.API_KEY) || (window as any).process?.env?.API_KEY || "";
   } catch (e) {
-    console.warn("process.env is not defined in this environment.");
-    return '';
+    return (window as any).process?.env?.API_KEY || "";
   }
 };
 

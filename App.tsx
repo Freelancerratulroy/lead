@@ -1,12 +1,11 @@
 
 import React, { useState, useCallback } from 'react';
-import Header from './components/Header';
-import LeadForm from './components/LeadForm';
-import LeadTable from './components/LeadTable';
-import HTMLVisualizer from './components/HTMLVisualizer';
-import { AppStatus, Lead } from './types';
-import { searchLeads } from './services/geminiService';
-// Added missing Copy icon, and added Globe and ExternalLink for grounding sources display
+import Header from './components/Header.tsx';
+import LeadForm from './components/LeadForm.tsx';
+import LeadTable from './components/LeadTable.tsx';
+import HTMLVisualizer from './components/HTMLVisualizer.tsx';
+import { AppStatus, Lead } from './types.ts';
+import { searchLeads } from './services/geminiService.ts';
 import { Search, Loader2, CheckCircle2, AlertTriangle, ChevronRight, Bookmark, BarChart3, Target, ShieldCheck, Sparkles, Copy, Globe, ExternalLink } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -14,7 +13,6 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [markdown, setMarkdown] = useState('');
-  // Added state to store grounding sources from search results
   const [sources, setSources] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +24,6 @@ const App: React.FC = () => {
       const result = await searchLeads(business, location);
       setLeads(result.leads);
       setMarkdown(result.markdown);
-      // Capture grounding sources from search result metadata
       setSources(result.sources);
       setStatus(AppStatus.SUCCESS);
     } catch (err: any) {
@@ -108,7 +105,6 @@ const App: React.FC = () => {
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <LeadTable leads={leads} onCopyMarkdown={copyMarkdown} />
 
-                {/* Listing Google Search grounding sources as required by the guidelines */}
                 {sources.length > 0 && (
                   <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
                     <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
