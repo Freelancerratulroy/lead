@@ -3,43 +3,39 @@ import { GoogleGenAI } from "@google/genai";
 import { Lead } from "../types";
 
 export const searchLeads = async (business: string, location: string): Promise<{ leads: Lead[], markdown: string, sources: any[] }> => {
-  // Strictly use process.env.API_KEY as per the platform requirements.
-  // Vercel will inject this automatically if set in Environment Variables.
+  // Directly access process.env.API_KEY as per system requirements.
   const apiKey = process.env.API_KEY;
   
-  if (!apiKey) {
-    throw new Error("API_KEY is missing. Please ensure you have set 'API_KEY' in your Vercel Environment Variables and Redeployed.");
+  if (!apiKey || apiKey === "") {
+    throw new Error("API_KEY is missing. Action required: 1. Go to Vercel Settings -> Environment Variables. 2. Add 'API_KEY'. 3. Go to Deployments -> Redeploy.");
   }
 
+  // Create instance right before use to ensure the latest key is used
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `
     Act as a Professional Lead Generation and SEO Audit Specialist. 
-    Your goal is to provide high-quality, verified business leads for "${business}" in "${location}".
+    Find verified business leads for "${business}" in "${location}".
     
-    TASK: Research and provide a list of verified business leads in a clean Markdown Table.
-    
-    For each lead, include:
-    1. Business Name
-    2. Phone Number
-    3. Website URL
-    4. Email Address
-    5. Social Media Links
-    6. 3 Technical SEO Weak Points (e.g., No Meta Tags, Missing Alt Text, Poor Page Speed)
-    7. GBP Status (Does it have a Google Business Profile?)
+    Provide exactly:
+    - Business Name
+    - Phone Number
+    - Website
+    - Email
+    - Social Media links
+    - 3 specific technical SEO weak points
+    - GBP status (Yes/No)
 
-    Format ONLY as a Markdown Table:
-    | Business Name | Phone | Website | Email | Social Media | SEO Weak Points | GBP Status |
-    |---------------|-------|---------|-------|--------------|-----------------|------------|
+    Output format: Markdown Table.
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        temperature: 0.2,
+        temperature: 0.1,
       },
     });
 
@@ -50,7 +46,7 @@ export const searchLeads = async (business: string, location: string): Promise<{
     return { leads, markdown, sources };
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw new Error(error.message || "An unexpected error occurred while fetching leads.");
+    throw new Error(error.message || "Failed to fetch leads from Gemini.");
   }
 };
 
