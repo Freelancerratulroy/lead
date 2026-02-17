@@ -1,158 +1,88 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
-import { Lead, HTMLAnalysis, HTMLVisResult } from "../types.ts";
+import { GoogleGenAI } from "@google/genai";
+import { Lead } from "../types";
 
-/**
- * Utility to safely get the API key injected by Vite or from process.env.
- */
-const getApiKey = (): string => {
-  // process.env.API_KEY is replaced by Vite with a string literal during build
-  const key = process.env.API_KEY;
-  if (!key || key === "undefined" || key === "") {
-    return "";
-  }
-  return key;
-};
+// The API key is obtained from the environment variable as per requirements
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const parseGeminiError = (error: any): string => {
-  console.error("Gemini API Error:", error);
-  if (error?.message?.includes("API key")) {
-    return "API Key is missing or invalid. Please ensure Google Gemini API Key is set in your environment variables.";
-  }
-  return error?.message || "An error occurred during AI processing.";
-};
-
-/**
- * Searches for leads using Gemini 3 Flash with Google Search grounding.
- */
 export const searchLeads = async (business: string, location: string): Promise<{ leads: Lead[], markdown: string, sources: any[] }> => {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error("API Key not found. Set API_KEY in your hosting environment variables.");
+  const prompt = `
+    Act as a Professional Lead Generation and SEO Audit Specialist. 
+    Your goal is to provide high-quality, verified business leads for "${business}" in "${location}".
+    
+    TASK: Use Google Search to find a detailed list of up to 80 potential clients. 
+    Provide as many as possible (at least 20-30 in a single turn).
+    
+    For each lead, you must research and provide:
+    1. Business Name: Official name.
+    2. Phone Number: Direct contact number.
+    3. Website: Full URL.
+    4. Email Address: Professional or business email.
+    5. Social Media: Links to Facebook/LinkedIn/Instagram.
+    6. SEO Weak Points: Identify at least 3 technical SEO issues (e.g., No Meta Tags, Missing Alt Text, Poor Page Speed, No Schema Markup, or Non-Responsive Design).
+    7. Business Status: Mention if they have a Google Business Profile (GBP) or not.
 
-  const ai = new GoogleGenAI({ apiKey });
+    FORMATTING RULE: 
+    - Provide the output in a clean Markdown Table format.
+    - If any data is not publicly available, mark it as "N/A".
+    - Ensure the data is current by using your search grounding capabilities.
+
+    | Business Name | Phone | Website | Email | Social Media | SEO Weak Points | GBP Status |
+    |---------------|-------|---------|-------|--------------|-----------------|------------|
+  `;
+
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Find 20-30 real businesses of type "${business}" in "${location}". 
-      Return the data in a clean Markdown table with columns: Business Name, Phone, Website, Email, Social Media, SEO Weak Points (comma separated), GBP Status.`,
+      model: 'gemini-3-pro-preview',
+      contents: prompt,
       config: {
-        systemInstruction: "You are a Professional Lead Generation and SEO Audit Specialist. Use real-time data to find current business information.",
-        tools: [{ googleSearch: {} }]
-      }
+        // Only Google Search grounding is allowed with gemini-3-pro-preview
+        tools: [{ googleSearch: {} }],
+        temperature: 0.1,
+      },
     });
 
     const markdown = response.text || "";
     const leads = parseMarkdownTable(markdown);
+    
+    // Extracting potential sources from grounding metadata if available
     const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
     return { leads, markdown, sources };
   } catch (error) {
-    throw new Error(parseGeminiError(error));
-  }
-};
-
-/**
- * HTML VIS: Analyzes pasted HTML to identify editable components.
- */
-export const analyzeHTMLCode = async (html: string): Promise<HTMLAnalysis> => {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error("API Key not found.");
-
-  const ai = new GoogleGenAI({ apiKey });
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: `Analyze this HTML code and identify all editable text blocks, image URLs, links (hrefs), primary colors, and font families. 
-      HTML Code: ${html}`,
-      config: {
-        systemInstruction: "You are an expert Frontend Designer. Identify the key visual components of the HTML for a user-friendly editor.",
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            description: { type: Type.STRING },
-            fields: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING },
-                  type: { type: Type.STRING, enum: ['text', 'image', 'link', 'color', 'font'] },
-                  label: { type: Type.STRING },
-                  currentValue: { type: Type.STRING },
-                  selector: { type: Type.STRING }
-                },
-                required: ['id', 'type', 'label', 'currentValue', 'selector']
-              }
-            }
-          },
-          required: ['title', 'description', 'fields']
-        }
-      }
-    });
-
-    return JSON.parse(response.text || "{}") as HTMLAnalysis;
-  } catch (error) {
-    throw new Error(parseGeminiError(error));
-  }
-};
-
-/**
- * HTML VIS: Applies changes to the HTML based on visual editor inputs or chat instructions.
- */
-export const updateHTMLCode = async (html: string, instruction: string): Promise<HTMLVisResult> => {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error("API Key not found.");
-
-  const ai = new GoogleGenAI({ apiKey });
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: `Original HTML: \n${html}\n\nRequested Modification: ${instruction}`,
-      config: {
-        systemInstruction: `You are an expert Frontend Developer. 
-        Apply the user's modifications to the HTML/CSS while keeping the original structure, responsiveness, and design integrity intact. 
-        Return ONLY a JSON object with the new code and a brief explanation.`,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            code: { type: Type.STRING },
-            explanation: { type: Type.STRING }
-          },
-          required: ['code', 'explanation']
-        }
-      }
-    });
-
-    return JSON.parse(response.text || "{}") as HTMLVisResult;
-  } catch (error) {
-    throw new Error(parseGeminiError(error));
+    console.error("Gemini API Error:", error);
+    throw error;
   }
 };
 
 const parseMarkdownTable = (markdown: string): Lead[] => {
   const lines = markdown.trim().split('\n');
   const leads: Lead[] = [];
+  
   const tableStartIndex = lines.findIndex(line => line.includes('|') && line.includes('---'));
   if (tableStartIndex === -1) return [];
+
   const dataLines = lines.slice(tableStartIndex + 1);
 
   dataLines.forEach((line, index) => {
-    const cols = line.split('|').map(c => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
-    if (cols.length >= 7) {
-      leads.push({
-        id: `lead-${index}-${Date.now()}`,
-        businessName: cols[0] || "N/A",
-        phone: cols[1] || "N/A",
-        website: cols[2] || "N/A",
-        email: cols[3] || "N/A",
-        socialMedia: cols[4] || "N/A",
-        seoWeakPoints: (cols[5] || "").split(',').map(s => s.trim()).filter(s => s !== ""),
-        businessStatus: cols[6] || "N/A"
-      });
+    // Check if it's a valid data row (contains pipes and isn't just whitespace)
+    if (line.trim() && line.includes('|')) {
+      const cols = line.split('|').map(c => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
+
+      if (cols.length >= 7) {
+        leads.push({
+          id: `lead-${index}-${Date.now()}`,
+          businessName: cols[0] || "N/A",
+          phone: cols[1] || "N/A",
+          website: cols[2] || "N/A",
+          email: cols[3] || "N/A",
+          socialMedia: cols[4] || "N/A",
+          seoWeakPoints: (cols[5] || "").split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-"),
+          businessStatus: cols[6] || "N/A"
+        });
+      }
     }
   });
+
   return leads;
 };

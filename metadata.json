@@ -1,7 +1,5 @@
 {
-  "name": "LeadGen Pro & HTML Visualizer",
-  "description": "Professional-grade lead generation, SEO audit, and visual HTML editing tool powered by Gemini 3 Pro.",
-  "requestFramePermissions": [
-    "geolocation"
-  ]
+  "name": "LeadGen Pro & SEO Auditor",
+  "description": "A professional-grade lead generation and SEO audit tool that finds real-world businesses based on niche and location, performing a preliminary SEO scan for each lead.",
+  "requestFramePermissions": []
 }

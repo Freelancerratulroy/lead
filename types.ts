@@ -22,23 +22,3 @@ export enum AppStatus {
   SUCCESS = 'SUCCESS',
   ERROR = 'ERROR'
 }
-
-// HTML VIS Types
-export interface EditableField {
-  id: string;
-  type: 'text' | 'image' | 'link' | 'color' | 'font';
-  label: string;
-  currentValue: string;
-  selector: string; // Describes the element (e.g., "hero heading", "main logo")
-}
-
-export interface HTMLAnalysis {
-  fields: EditableField[];
-  title: string;
-  description: string;
-}
-
-export interface HTMLVisResult {
-  code: string;
-  explanation: string;
-}
