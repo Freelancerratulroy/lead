@@ -11,6 +11,12 @@
       // Immediate polyfill for browser environments to prevent crashes on 'process' access
       (function() {
         window.process = window.process || { env: { API_KEY: '' } };
+        
+        // Log global errors to help debug blank screens in production
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+          console.error('Frontend Error:', msg, 'at', url, 'line', lineNo);
+          return false;
+        };
       })();
     </script>
     <style>
@@ -34,6 +40,22 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+        /* Visual cue to prevent "white screen" confusion during initialization */
+        #root:empty::before {
+            content: 'Initializing LeadGen Pro...';
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: #64748b;
+            font-weight: 600;
+            font-size: 1.125rem;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
     </style>
 <script type="importmap">
 {
@@ -42,9 +64,9 @@
     "react/": "https://esm.sh/react@19.0.0/",
     "react-dom": "https://esm.sh/react-dom@19.0.0",
     "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "react-dom/": "https://esm.sh/react-dom@19.0.0/",
     "@google/genai": "https://esm.sh/@google/genai@1.41.0",
-    "lucide-react": "https://esm.sh/lucide-react@0.474.0?external=react",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+    "lucide-react": "https://esm.sh/lucide-react@0.474.0?external=react"
   }
 }
 </script>
