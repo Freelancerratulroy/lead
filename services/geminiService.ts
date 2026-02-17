@@ -3,11 +3,12 @@ import { GoogleGenAI } from "@google/genai";
 import { Lead } from "../types";
 
 export const searchLeads = async (business: string, location: string): Promise<{ leads: Lead[], markdown: string, sources: any[] }> => {
-  // Use the injected API_KEY from process.env
-  const apiKey = (window as any).process?.env?.API_KEY || process.env.API_KEY;
+  // Strictly use process.env.API_KEY as per the platform requirements.
+  // Vercel will inject this automatically if set in Environment Variables.
+  const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    throw new Error("Missing Gemini API Key. Please configure API_KEY in your environment variables.");
+    throw new Error("API_KEY is missing. Please ensure you have set 'API_KEY' in your Vercel Environment Variables and Redeployed.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
