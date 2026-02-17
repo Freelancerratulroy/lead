@@ -1,9 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Lead, HTMLAnalysis, EditableField, HTMLVisResult } from "../types";
-
-// Initialize Gemini API
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+import { Lead, HTMLAnalysis, HTMLVisResult } from "../types";
 
 const parseGeminiError = (error: any): string => {
   console.error("Gemini API Error:", error);
@@ -11,9 +8,22 @@ const parseGeminiError = (error: any): string => {
 };
 
 /**
+ * Utility to safely get the API key from the environment.
+ */
+const getApiKey = () => {
+  try {
+    return process.env.API_KEY || '';
+  } catch (e) {
+    console.warn("process.env is not defined in this environment.");
+    return '';
+  }
+};
+
+/**
  * Searches for leads using Gemini 3 Flash with Google Search grounding.
  */
 export const searchLeads = async (business: string, location: string): Promise<{ leads: Lead[], markdown: string, sources: any[] }> => {
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -39,6 +49,7 @@ export const searchLeads = async (business: string, location: string): Promise<{
  * HTML VIS: Analyzes pasted HTML to identify editable components.
  */
 export const analyzeHTMLCode = async (html: string): Promise<HTMLAnalysis> => {
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -82,6 +93,7 @@ export const analyzeHTMLCode = async (html: string): Promise<HTMLAnalysis> => {
  * HTML VIS: Applies changes to the HTML based on visual editor inputs or chat instructions.
  */
 export const updateHTMLCode = async (html: string, instruction: string): Promise<HTMLVisResult> => {
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
