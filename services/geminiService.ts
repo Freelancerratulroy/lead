@@ -2,56 +2,54 @@
 import { GoogleGenAI } from "@google/genai";
 import { Lead } from "../types";
 
-// The API key is obtained from the environment variable as per requirements
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const searchLeads = async (business: string, location: string): Promise<{ leads: Lead[], markdown: string, sources: any[] }> => {
+  // Use the injected API_KEY from process.env
+  const apiKey = (window as any).process?.env?.API_KEY || process.env.API_KEY;
+  
+  if (!apiKey) {
+    throw new Error("Missing Gemini API Key. Please configure API_KEY in your environment variables.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
   const prompt = `
     Act as a Professional Lead Generation and SEO Audit Specialist. 
     Your goal is to provide high-quality, verified business leads for "${business}" in "${location}".
     
-    TASK: Use Google Search to find a detailed list of up to 80 potential clients. 
-    Provide as many as possible (at least 20-30 in a single turn).
+    TASK: Research and provide a list of verified business leads in a clean Markdown Table.
     
-    For each lead, you must research and provide:
-    1. Business Name: Official name.
-    2. Phone Number: Direct contact number.
-    3. Website: Full URL.
-    4. Email Address: Professional or business email.
-    5. Social Media: Links to Facebook/LinkedIn/Instagram.
-    6. SEO Weak Points: Identify at least 3 technical SEO issues (e.g., No Meta Tags, Missing Alt Text, Poor Page Speed, No Schema Markup, or Non-Responsive Design).
-    7. Business Status: Mention if they have a Google Business Profile (GBP) or not.
+    For each lead, include:
+    1. Business Name
+    2. Phone Number
+    3. Website URL
+    4. Email Address
+    5. Social Media Links
+    6. 3 Technical SEO Weak Points (e.g., No Meta Tags, Missing Alt Text, Poor Page Speed)
+    7. GBP Status (Does it have a Google Business Profile?)
 
-    FORMATTING RULE: 
-    - Provide the output in a clean Markdown Table format.
-    - If any data is not publicly available, mark it as "N/A".
-    - Ensure the data is current by using your search grounding capabilities.
-
+    Format ONLY as a Markdown Table:
     | Business Name | Phone | Website | Email | Social Media | SEO Weak Points | GBP Status |
     |---------------|-------|---------|-------|--------------|-----------------|------------|
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
-        // Only Google Search grounding is allowed with gemini-3-pro-preview
         tools: [{ googleSearch: {} }],
-        temperature: 0.1,
+        temperature: 0.2,
       },
     });
 
     const markdown = response.text || "";
     const leads = parseMarkdownTable(markdown);
-    
-    // Extracting potential sources from grounding metadata if available
     const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
     return { leads, markdown, sources };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw error;
+    throw new Error(error.message || "An unexpected error occurred while fetching leads.");
   }
 };
 
@@ -65,7 +63,6 @@ const parseMarkdownTable = (markdown: string): Lead[] => {
   const dataLines = lines.slice(tableStartIndex + 1);
 
   dataLines.forEach((line, index) => {
-    // Check if it's a valid data row (contains pipes and isn't just whitespace)
     if (line.trim() && line.includes('|')) {
       const cols = line.split('|').map(c => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
 
