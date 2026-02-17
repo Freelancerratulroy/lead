@@ -2,28 +2,34 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Lead, HTMLAnalysis, HTMLVisResult } from "../types.ts";
 
-const parseGeminiError = (error: any): string => {
-  console.error("Gemini API Error:", error);
-  return error?.message || "An error occurred during AI processing.";
-};
-
 /**
- * Utility to safely get the API key. 
+ * Utility to safely get the API key injected by Vite or from process.env.
  */
 const getApiKey = (): string => {
-  try {
-    // Attempt standard process.env, fallback to window.process.env
-    return (process.env.API_KEY) || (window as any).process?.env?.API_KEY || "";
-  } catch (e) {
-    return (window as any).process?.env?.API_KEY || "";
+  // process.env.API_KEY is replaced by Vite with a string literal during build
+  const key = process.env.API_KEY;
+  if (!key || key === "undefined" || key === "") {
+    return "";
   }
+  return key;
+};
+
+const parseGeminiError = (error: any): string => {
+  console.error("Gemini API Error:", error);
+  if (error?.message?.includes("API key")) {
+    return "API Key is missing or invalid. Please ensure Google Gemini API Key is set in your environment variables.";
+  }
+  return error?.message || "An error occurred during AI processing.";
 };
 
 /**
  * Searches for leads using Gemini 3 Flash with Google Search grounding.
  */
 export const searchLeads = async (business: string, location: string): Promise<{ leads: Lead[], markdown: string, sources: any[] }> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("API Key not found. Set API_KEY in your hosting environment variables.");
+
+  const ai = new GoogleGenAI({ apiKey });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -49,7 +55,10 @@ export const searchLeads = async (business: string, location: string): Promise<{
  * HTML VIS: Analyzes pasted HTML to identify editable components.
  */
 export const analyzeHTMLCode = async (html: string): Promise<HTMLAnalysis> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("API Key not found.");
+
+  const ai = new GoogleGenAI({ apiKey });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -93,7 +102,10 @@ export const analyzeHTMLCode = async (html: string): Promise<HTMLAnalysis> => {
  * HTML VIS: Applies changes to the HTML based on visual editor inputs or chat instructions.
  */
 export const updateHTMLCode = async (html: string, instruction: string): Promise<HTMLVisResult> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("API Key not found.");
+
+  const ai = new GoogleGenAI({ apiKey });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -101,8 +113,6 @@ export const updateHTMLCode = async (html: string, instruction: string): Promise
       config: {
         systemInstruction: `You are an expert Frontend Developer. 
         Apply the user's modifications to the HTML/CSS while keeping the original structure, responsiveness, and design integrity intact. 
-        If images or links are updated, ensure they are valid. 
-        If styling is updated, use inline CSS or update the internal <style> block. 
         Return ONLY a JSON object with the new code and a brief explanation.`,
         responseMimeType: "application/json",
         responseSchema: {
